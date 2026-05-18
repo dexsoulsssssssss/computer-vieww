@@ -37,6 +37,11 @@
       margin:6px 6px 6px 0;
     }
 
+    button:disabled {
+      opacity:0.5;
+      cursor:not-allowed;
+    }
+
     input {
       width:100%;
       padding:12px;
@@ -67,6 +72,58 @@
       color:#60a5fa;
       word-break:break-all;
     }
+
+    .notice {
+      margin-top:8px;
+      font-size:0.85rem;
+      color:#f59e0b;
+      background:#1f1a09;
+      border-radius:8px;
+      padding:8px 10px;
+    }
+
+    .status {
+      margin-top:8px;
+      font-size:0.85rem;
+      color:#94a3b8;
+    }
+
+    /* Tap-to-play overlay */
+    .video-wrap {
+      position:relative;
+      margin-top:15px;
+    }
+
+    .video-wrap video {
+      margin-top:0;
+      display:block;
+    }
+
+    #tapOverlay {
+      position:absolute;
+      inset:0;
+      background:rgba(0,0,0,0.55);
+      border-radius:12px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      gap:10px;
+    }
+
+    #tapOverlay span {
+      font-size:1rem;
+      color:white;
+    }
+
+    #tapOverlay svg {
+      width:52px; height:52px;
+      fill:white;
+      opacity:0.9;
+    }
+
+    #tapOverlay.hidden { display:none; }
   </style>
 </head>
 <body>
@@ -80,6 +137,7 @@
   <div class="card" id="hostPanel" style="display:none;">
     <h3>HOST</h3>
     <div class="idBox" id="hostId">Generating...</div>
+    <div id="hostNotice" class="notice" style="display:none;"></div>
     <video id="hostVideo" autoplay muted playsinline></video>
   </div>
 
@@ -87,7 +145,15 @@
     <h3>VIEWER</h3>
     <input id="roomInput" placeholder="Enter ID" />
     <button id="connectBtn">Connect</button>
-    <video id="viewerVideo" autoplay playsinline></video>
+    <div class="status" id="viewerStatus"></div>
+    <div class="video-wrap">
+      <video id="viewerVideo" autoplay muted playsinline></video>
+      <!-- Tap-to-play overlay for mobile autoplay policy -->
+      <div id="tapOverlay" class="hidden">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <span>Tap to play</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -95,77 +161,176 @@
 let peer;
 let stream;
 
-const hostBtn = document.getElementById('hostBtn');
-const viewerBtn = document.getElementById('viewerBtn');
-const hostPanel = document.getElementById('hostPanel');
-const viewerPanel = document.getElementById('viewerPanel');
-const hostVideo = document.getElementById('hostVideo');
-const viewerVideo = document.getElementById('viewerVideo');
-const hostIdBox = document.getElementById('hostId');
+const hostBtn    = document.getElementById('hostBtn');
+const viewerBtn  = document.getElementById('viewerBtn');
+const hostPanel  = document.getElementById('hostPanel');
+const viewerPanel= document.getElementById('viewerPanel');
+const hostVideo  = document.getElementById('hostVideo');
+const viewerVideo= document.getElementById('viewerVideo');
+const hostIdBox  = document.getElementById('hostId');
+const hostNotice = document.getElementById('hostNotice');
+const connectBtn = document.getElementById('connectBtn');
+const viewerStatus = document.getElementById('viewerStatus');
+const tapOverlay = document.getElementById('tapOverlay');
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function shortId() {
   return Math.random().toString(36).slice(2, 8);
 }
 
-function createPeer(id) {
-  return new Peer(id, {
-    config: {
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    }
-  });
+function isMobile() {
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 }
 
-// HOST
+function createPeer(id) {
+  const cfg = {
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    }
+  };
+  return id ? new Peer(id, cfg) : new Peer(cfg);
+}
+
+// Try to play video; show tap overlay if blocked (mobile autoplay policy)
+function tryPlay(videoEl) {
+  const p = videoEl.play();
+  if (p !== undefined) {
+    p.catch(() => {
+      tapOverlay.classList.remove('hidden');
+    });
+  }
+}
+
+tapOverlay.addEventListener('click', () => {
+  viewerVideo.muted = false; // unmute on explicit user tap if desired
+  viewerVideo.play().catch(() => {});
+  tapOverlay.classList.add('hidden');
+});
+
+// ── HOST ─────────────────────────────────────────────────────────────────────
+
 hostBtn.onclick = async () => {
   hostPanel.style.display = 'block';
   viewerPanel.style.display = 'none';
+  hostNotice.style.display = 'none';
 
   const id = shortId();
   peer = createPeer(id);
+  hostIdBox.innerText = 'ID: ' + id;
 
-  hostIdBox.innerText = "ID: " + id;
+  const mobile = isMobile();
 
   try {
-    stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: 30 },
-      audio: false
-    });
+    if (mobile || !navigator.mediaDevices.getDisplayMedia) {
+      // Mobile: getDisplayMedia not supported — fall back to camera
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      });
+      hostNotice.textContent = '📱 Mobile detected — sharing camera (screen share not supported on mobile browsers).';
+      hostNotice.style.display = 'block';
+    } else {
+      // Desktop: screen share
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 30 },
+        audio: false
+      });
+    }
 
     hostVideo.srcObject = stream;
+    hostVideo.play().catch(() => {});
 
+    // Answer any incoming calls with the stream
     peer.on('call', (call) => {
       call.answer(stream);
+      call.on('error', (e) => console.error('Call error:', e));
+    });
+
+    // If the user stops sharing (desktop stop-share button)
+    stream.getVideoTracks()[0].addEventListener('ended', () => {
+      hostIdBox.innerText = 'Stream ended.';
+      peer.destroy();
     });
 
   } catch (e) {
-    alert('Screen share failed');
+    alert('Could not access camera/screen: ' + (e.message || e));
     console.error(e);
   }
 };
 
-// VIEWER UI
+// ── VIEWER UI ────────────────────────────────────────────────────────────────
+
 viewerBtn.onclick = () => {
   hostPanel.style.display = 'none';
   viewerPanel.style.display = 'block';
 };
 
-// VIEWER CONNECT
+// ── VIEWER CONNECT ───────────────────────────────────────────────────────────
+
 connectBtn.onclick = () => {
   const id = document.getElementById('roomInput').value.trim();
-  if (!id) return alert('Enter ID');
+  if (!id) return alert('Enter an ID');
 
-  peer = createPeer();
+  connectBtn.disabled = true;
+  viewerStatus.textContent = 'Connecting…';
+  tapOverlay.classList.add('hidden');
+
+  // Destroy any previous peer
+  if (peer) { try { peer.destroy(); } catch(_){} }
+
+  peer = createPeer(); // viewer has no fixed ID
+
+  peer.on('error', (e) => {
+    viewerStatus.textContent = 'Error: ' + e.message;
+    connectBtn.disabled = false;
+    console.error('Peer error:', e);
+  });
 
   peer.on('open', () => {
-    const call = peer.call(id, null);
+    viewerStatus.textContent = 'Peer ready, calling host…';
 
-    call.on('stream', (remoteStream) => {
+    // We pass a null/empty stream — we only want to receive
+    // PeerJS requires a stream arg; create a silent one if needed
+    let callObj;
+    try {
+      callObj = peer.call(id, null);
+    } catch (_) {
+      // Some PeerJS versions reject null — create a dummy silent stream
+      const ctx = new AudioContext();
+      const dest = ctx.createMediaStreamDestination();
+      callObj = peer.call(id, dest.stream);
+    }
+
+    if (!callObj) {
+      viewerStatus.textContent = 'Failed to reach host. Check the ID.';
+      connectBtn.disabled = false;
+      return;
+    }
+
+    callObj.on('stream', (remoteStream) => {
+      viewerStatus.textContent = 'Connected ✓';
+      connectBtn.disabled = false;
       viewerVideo.srcObject = remoteStream;
-
-      viewerVideo.onloadedmetadata = () => {
-        viewerVideo.play().catch(()=>{});
-      };
+      tryPlay(viewerVideo);
     });
+
+    callObj.on('error', (e) => {
+      viewerStatus.textContent = 'Call error: ' + e.message;
+      connectBtn.disabled = false;
+      console.error(e);
+    });
+
+    // Timeout if no stream arrives
+    setTimeout(() => {
+      if (!viewerVideo.srcObject) {
+        viewerStatus.textContent = 'Timed out — no stream received. Check the ID.';
+        connectBtn.disabled = false;
+      }
+    }, 15000);
   });
 };
 </script>
