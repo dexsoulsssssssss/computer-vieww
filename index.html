@@ -77,7 +77,8 @@
     video {
       width: 100%;
       border-radius: 18px;
-      background: black;
+      background: #000;
+      object-fit: contain;
       margin-top: 16px;
       max-height: 75vh;
     }
@@ -180,7 +181,6 @@
         autoplay
         playsinline
         muted
-        controls
       ></video>
     </div>
   </div>
@@ -229,8 +229,8 @@
         localStream = await navigator.mediaDevices.getDisplayMedia({
           video: {
             frameRate: {
-              ideal: 60,
-              max: 60
+              ideal: 30,
+              max: 30
             },
             width: {
               ideal: 1920
@@ -239,7 +239,7 @@
               ideal: 1080
             }
           },
-          audio: true
+          audio: false
         });
 
         hostVideo.srcObject = localStream;
@@ -275,6 +275,8 @@
 
           call.answer(localStream);
 
+          console.log('Viewer connected');
+
           const sender = call.peerConnection
             .getSenders()
             .find(s => s.track && s.track.kind === 'video');
@@ -286,7 +288,7 @@
               params.encodings = [{}];
             }
 
-            params.encodings[0].maxBitrate = 12000000;
+            params.encodings[0].maxBitrate = 5000000;
             params.encodings[0].maxFramerate = 60;
 
             try {
@@ -336,13 +338,25 @@
 
       peer.on('open', async () => {
         const fakeStream = await navigator.mediaDevices
-          .getUserMedia({ audio: true, video: false })
+          .getUserMedia({ audio: false, video: false })
           .catch(() => new MediaStream());
 
         const call = peer.call(roomId, fakeStream);
 
         call.on('stream', async (remoteStream) => {
           viewerVideo.srcObject = remoteStream;
+
+          viewerVideo.style.display = 'block';
+          viewerVideo.controls = false;
+          viewerVideo.muted = true;
+          viewerVideo.setAttribute('webkit-playsinline', 'true');
+          viewerVideo.setAttribute('playsinline', 'true');
+
+          viewerVideo.onclick = async () => {
+            try {
+              await viewerVideo.play();
+            } catch(e) {}
+          };
 
           try {
             await viewerVideo.play();
