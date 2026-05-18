@@ -3,231 +3,656 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Screen Stream</title>
+  <title>StreamLink</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #030712;
+      --surface:   rgba(15, 23, 42, 0.75);
+      --border:    rgba(148, 163, 184, 0.1);
+      --border-hi: rgba(148, 163, 184, 0.22);
+      --text:      #f1f5f9;
+      --muted:     #64748b;
+      --blue:      #3b82f6;
+      --blue-dark: #1d4ed8;
+      --purple:    #8b5cf6;
+      --green:     #10b981;
+      --amber:     #f59e0b;
+      --red:       #ef4444;
+      --radius:    16px;
+    }
+
+    html { height: 100%; }
 
     body {
-      background: #0b0f16;
-      color: white;
-      min-height: 100vh;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100%;
       display: flex;
       justify-content: center;
       align-items: flex-start;
-      padding: 20px;
+      padding: 24px 16px 60px;
+      overflow-x: hidden;
     }
 
-    .app {
+    /* ── Animated background ───────────────────────────────── */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.18;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, #3b82f6, transparent 70%);
+      top: -200px; left: -200px;
+      animation: drift1 18s ease-in-out infinite alternate;
+    }
+    body::after {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, #8b5cf6, transparent 70%);
+      bottom: -150px; right: -150px;
+      animation: drift2 22s ease-in-out infinite alternate;
+    }
+    @keyframes drift1 { to { transform: translate(120px, 80px); } }
+    @keyframes drift2 { to { transform: translate(-80px, -60px); } }
+
+    /* ── Layout ────────────────────────────────────────────── */
+    .shell {
+      position: relative;
+      z-index: 1;
       width: 100%;
-      max-width: 800px;
-      background: #121826;
-      padding: 20px;
-      border-radius: 18px;
-      margin-top: 20px;
+      max-width: 780px;
+      margin-top: 12px;
     }
 
-    h2 { margin-bottom: 16px; }
-
-    button {
-      padding: 12px 18px;
-      border: none;
-      border-radius: 10px;
-      background: #2563eb;
-      color: white;
-      cursor: pointer;
-      margin: 6px 6px 6px 0;
-      font-size: 1rem;
-      transition: opacity 0.2s;
-    }
-    button:disabled { opacity: 0.45; cursor: not-allowed; }
-    button.secondary { background: #374151; }
-
-    input {
-      width: 100%;
-      padding: 12px;
-      margin-top: 10px;
-      border-radius: 10px;
-      border: 1px solid #333;
-      background: #0b0f16;
-      color: white;
-      font-size: 1rem;
-    }
-
-    video {
-      width: 100%;
-      margin-top: 14px;
-      background: #000;
-      border-radius: 12px;
-      display: block;
-    }
-
-    .card {
-      margin-top: 16px;
-      padding: 16px;
-      background: #0f1724;
-      border-radius: 14px;
-    }
-
-    .id-row {
+    /* ── Header ────────────────────────────────────────────── */
+    .header {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .logo {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      box-shadow: 0 0 24px rgba(59,130,246,0.35);
+    }
+    .header h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      background: linear-gradient(90deg, #f1f5f9 30%, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .header p {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+
+    /* ── Mode selector ─────────────────────────────────────── */
+    .mode-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .mode-btn {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 16px;
+      cursor: pointer;
+      text-align: left;
+      color: var(--text);
+      font-family: inherit;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      overflow: hidden;
+    }
+    .mode-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.25s;
+      border-radius: var(--radius);
+    }
+    .mode-btn.host-btn::before  { background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(139,92,246,0.08)); }
+    .mode-btn.viewer-btn::before{ background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(59,130,246,0.08)); }
+    .mode-btn:hover { border-color: var(--border-hi); box-shadow: 0 0 0 1px rgba(255,255,255,0.05) inset; }
+    .mode-btn:hover::before { opacity: 1; }
+    .mode-btn.active.host-btn   { border-color: rgba(59,130,246,0.5); box-shadow: 0 0 20px rgba(59,130,246,0.15); }
+    .mode-btn.active.viewer-btn { border-color: rgba(16,185,129,0.5); box-shadow: 0 0 20px rgba(16,185,129,0.15); }
+    .mode-btn.active::before    { opacity: 1; }
+
+    .mode-icon {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .mode-btn strong {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+    .mode-btn span {
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    /* ── Panel cards ───────────────────────────────────────── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      animation: fadeSlide 0.3s ease both;
+    }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .panel-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    /* ── ID display ────────────────────────────────────────── */
+    .id-card {
+      background: rgba(0,0,0,0.35);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
       flex-wrap: wrap;
-      margin-top: 10px;
+      margin-bottom: 14px;
     }
-
-    .idBox {
-      font-size: 1.4rem;
-      font-weight: bold;
-      color: #60a5fa;
-      letter-spacing: 2px;
-      word-break: break-all;
+    .id-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 4px;
     }
-
+    .id-value {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 6px;
+      background: linear-gradient(90deg, var(--blue), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-variant-numeric: tabular-nums;
+      min-height: 1.2em;
+    }
     .copy-btn {
-      padding: 6px 12px;
-      font-size: 0.8rem;
-      margin: 0;
-      background: #1e3a5f;
-      border-radius: 6px;
-    }
-
-    .status {
-      margin-top: 10px;
-      padding: 8px 12px;
+      flex-shrink: 0;
+      padding: 8px 16px;
+      background: rgba(59,130,246,0.15);
+      border: 1px solid rgba(59,130,246,0.3);
       border-radius: 8px;
-      font-size: 0.88rem;
-      background: #0b0f16;
-      color: #94a3b8;
-      min-height: 36px;
+      color: var(--blue);
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
     }
-    .status.ok   { color: #4ade80; }
-    .status.warn { color: #f59e0b; }
-    .status.err  { color: #f87171; }
+    .copy-btn:hover { background: rgba(59,130,246,0.25); border-color: rgba(59,130,246,0.5); }
+    .copy-btn.copied { color: var(--green); border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.12); }
 
+    /* ── Status bar ────────────────────────────────────────── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 14px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 0.82rem;
+      color: var(--muted);
+      min-height: 38px;
+      margin-bottom: 14px;
+      transition: color 0.3s, border-color 0.3s;
+    }
+    .status-bar .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .status-bar.ok   { color: var(--green);  border-color: rgba(16,185,129,0.25); }
+    .status-bar.ok .dot   { background: var(--green);  box-shadow: 0 0 6px var(--green); animation: pulse 1.8s infinite; }
+    .status-bar.warn { color: var(--amber);  border-color: rgba(245,158,11,0.25); }
+    .status-bar.warn .dot { background: var(--amber); }
+    .status-bar.err  { color: var(--red);    border-color: rgba(239,68,68,0.25); }
+    .status-bar.err .dot  { background: var(--red); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    /* ── Notice ────────────────────────────────────────────── */
     .notice {
-      margin-top: 10px;
-      padding: 8px 12px;
-      background: #1f1a09;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px 14px;
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.2);
       border-radius: 8px;
-      font-size: 0.85rem;
-      color: #fbbf24;
+      font-size: 0.8rem;
+      color: var(--amber);
+      margin-bottom: 14px;
+      line-height: 1.5;
     }
 
-    /* Tap-to-play overlay */
-    .video-wrap { position: relative; }
+    /* ── Input ─────────────────────────────────────────────── */
+    .input-group { margin-bottom: 14px; }
+    .input-group label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input-group input::placeholder { color: var(--muted); letter-spacing: 1px; text-transform: none; font-weight: 400; }
+    .input-group input:focus {
+      outline: none;
+      border-color: rgba(59,130,246,0.5);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+
+    /* ── Buttons ───────────────────────────────────────────── */
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+
+    .btn {
+      padding: 11px 22px;
+      border: none;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s, box-shadow 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      color: white;
+      box-shadow: 0 4px 14px rgba(59,130,246,0.3);
+    }
+    .btn-primary:hover:not(:disabled) { box-shadow: 0 4px 20px rgba(59,130,246,0.5); }
+
+    .btn-ghost {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,0.1); color: var(--text); }
+
+    .btn-danger {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.25);
+      color: var(--red);
+    }
+    .btn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.2); }
+
+    /* ── Video ─────────────────────────────────────────────── */
+    .video-wrap {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    }
+    .video-wrap video {
+      width: 100%;
+      display: block;
+      background: #000;
+    }
+
+    .live-badge {
+      position: absolute;
+      top: 12px; left: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(0,0,0,0.65);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: white;
+      backdrop-filter: blur(8px);
+    }
+    .live-badge .live-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--red);
+      animation: pulse 1.4s infinite;
+    }
+    .live-badge.hidden { display: none; }
+
+    /* Tap to play overlay */
     .tap-overlay {
       position: absolute;
       inset: 0;
-      margin-top: 14px;
-      border-radius: 12px;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0,0,0,0.55);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      gap: 8px;
+      gap: 12px;
+      backdrop-filter: blur(4px);
     }
-    .tap-overlay svg { width: 56px; height: 56px; fill: white; opacity: 0.9; }
-    .tap-overlay span { font-size: 1rem; color: white; }
+    .tap-overlay .play-icon {
+      width: 64px; height: 64px;
+      background: rgba(255,255,255,0.15);
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tap-overlay .play-icon svg { width: 28px; height: 28px; fill: white; margin-left: 3px; }
+    .tap-overlay p { font-size: 0.88rem; color: rgba(255,255,255,0.85); }
     .tap-overlay.hidden { display: none; }
+
+    /* Reconnecting overlay */
+    .reconnect-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      backdrop-filter: blur(6px);
+    }
+    .reconnect-overlay.hidden { display: none; }
+    .spinner {
+      width: 38px; height: 38px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .reconnect-overlay p { font-size: 0.88rem; color: rgba(255,255,255,0.75); text-align: center; }
+
+    /* ── Divider ───────────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 18px 0;
+    }
+
+    /* ── Reconnect info strip ──────────────────────────────── */
+    .reconnect-strip {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: rgba(245,158,11,0.07);
+      border: 1px solid rgba(245,158,11,0.18);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: var(--amber);
+      margin-bottom: 14px;
+    }
+    .reconnect-strip.visible { display: flex; }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .mode-row { grid-template-columns: 1fr 1fr; }
+      .id-value { font-size: 1.4rem; letter-spacing: 4px; }
+    }
   </style>
 </head>
 <body>
 
-<div class="app">
-  <h2>📺 Screen Stream</h2>
+<div class="shell">
 
-  <button id="hostBtn">▶ Start Sharing</button>
-  <button id="viewerBtn">👁 Join Stream</button>
-
-  <!-- HOST PANEL -->
-  <div class="card" id="hostPanel" style="display:none;">
-    <h3>HOST</h3>
-    <div class="id-row">
-      <div class="idBox" id="hostId">…</div>
-      <button class="copy-btn" id="copyBtn" style="display:none;">Copy ID</button>
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">📡</div>
+    <div>
+      <h1>StreamLink</h1>
+      <p>Real-time peer-to-peer screen sharing</p>
     </div>
-    <div class="status" id="hostStatus">Starting…</div>
-    <div class="notice" id="hostNotice" style="display:none;"></div>
-    <video id="hostVideo" autoplay muted playsinline></video>
   </div>
 
-  <!-- VIEWER PANEL -->
-  <div class="card" id="viewerPanel" style="display:none;">
-    <h3>VIEWER</h3>
-    <input id="roomInput" placeholder="Enter host ID" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
-    <button id="connectBtn">Connect</button>
-    <button class="secondary" id="disconnectBtn" style="display:none;">Disconnect</button>
-    <div class="status" id="viewerStatus">Enter the host's ID and press Connect.</div>
+  <!-- MODE SELECT -->
+  <div class="mode-row">
+    <button class="mode-btn host-btn" id="hostBtn">
+      <span class="mode-icon">🖥️</span>
+      <strong>Share Screen</strong>
+      <span>Broadcast your screen or camera to viewers</span>
+    </button>
+    <button class="mode-btn viewer-btn" id="viewerBtn">
+      <span class="mode-icon">👁</span>
+      <strong>Watch Stream</strong>
+      <span>Join a stream using the host's ID</span>
+    </button>
+  </div>
+
+  <!-- HOST PANEL -->
+  <div class="panel" id="hostPanel" style="display:none;">
+    <div class="panel-title">Host</div>
+
+    <div class="id-card">
+      <div>
+        <div class="id-label">Your Stream ID</div>
+        <div class="id-value" id="hostId">——</div>
+      </div>
+      <button class="copy-btn" id="copyBtn" style="display:none;">Copy ID</button>
+    </div>
+
+    <div class="status-bar" id="hostStatus">
+      <span class="dot"></span>
+      <span class="msg">Starting…</span>
+    </div>
+
+    <div class="notice" id="hostNotice" style="display:none;">
+      <span>⚠️</span>
+      <span id="hostNoticeText"></span>
+    </div>
+
     <div class="video-wrap">
-      <video id="viewerVideo" autoplay muted playsinline></video>
-      <div class="tap-overlay hidden" id="tapOverlay">
-        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-        <span>Tap to play</span>
+      <video id="hostVideo" autoplay muted playsinline></video>
+      <div class="live-badge hidden" id="liveBadge">
+        <span class="live-dot"></span> Live
       </div>
     </div>
   </div>
-</div>
+
+  <!-- VIEWER PANEL -->
+  <div class="panel" id="viewerPanel" style="display:none;">
+    <div class="panel-title">Viewer</div>
+
+    <div class="input-group">
+      <label>Host Stream ID</label>
+      <input id="roomInput" placeholder="Enter ID (e.g. AB3X9)"
+        autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" />
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="connectBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Connect
+      </button>
+      <button class="btn btn-danger" id="disconnectBtn" style="display:none;">
+        Disconnect
+      </button>
+    </div>
+
+    <div class="reconnect-strip" id="reconnectStrip">
+      <span>⟳</span>
+      <span id="reconnectMsg">Reconnecting…</span>
+    </div>
+
+    <div class="status-bar" id="viewerStatus">
+      <span class="dot"></span>
+      <span class="msg">Enter the host's ID above and press Connect.</span>
+    </div>
+
+    <div class="video-wrap">
+      <video id="viewerVideo" autoplay muted playsinline></video>
+
+      <div class="tap-overlay hidden" id="tapOverlay">
+        <div class="play-icon">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+        <p>Tap to play</p>
+      </div>
+
+      <div class="reconnect-overlay hidden" id="reconnectOverlay">
+        <div class="spinner"></div>
+        <p id="reconnectOverlayMsg">Reconnecting…</p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /shell -->
 
 <script>
-// ─── State ────────────────────────────────────────────────────────────────────
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────────────────────
 let hostPeer, viewerPeer, localStream;
+let savedHostId = '';           // remember for auto-reconnect
+let reconnectAttempts = 0;
+const MAX_RECONNECT = 12;
+let reconnectTimer   = null;
+let keepaliveTimer   = null;
+let healthCheckTimer = null;
+let lastVideoTime    = -1;
+let isAutoReconnecting = false;
+let manualDisconnect   = false;
+let currentDataConn    = null;
 
-// ─── Elements ─────────────────────────────────────────────────────────────────
-const hostBtn      = document.getElementById('hostBtn');
-const viewerBtn    = document.getElementById('viewerBtn');
-const hostPanel    = document.getElementById('hostPanel');
-const viewerPanel  = document.getElementById('viewerPanel');
-const hostVideo    = document.getElementById('hostVideo');
-const viewerVideo  = document.getElementById('viewerVideo');
-const hostIdBox    = document.getElementById('hostId');
-const copyBtn      = document.getElementById('copyBtn');
-const hostStatus   = document.getElementById('hostStatus');
-const hostNotice   = document.getElementById('hostNotice');
-const connectBtn   = document.getElementById('connectBtn');
-const disconnectBtn= document.getElementById('disconnectBtn');
-const viewerStatus = document.getElementById('viewerStatus');
-const tapOverlay   = document.getElementById('tapOverlay');
-const roomInput    = document.getElementById('roomInput');
+// ── DOM ───────────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const hostBtn           = $('hostBtn');
+const viewerBtn         = $('viewerBtn');
+const hostPanel         = $('hostPanel');
+const viewerPanel       = $('viewerPanel');
+const hostVideo         = $('hostVideo');
+const viewerVideo       = $('viewerVideo');
+const hostIdBox         = $('hostId');
+const copyBtn           = $('copyBtn');
+const hostStatusEl      = $('hostStatus');
+const hostNotice        = $('hostNotice');
+const hostNoticeText    = $('hostNoticeText');
+const connectBtn        = $('connectBtn');
+const disconnectBtn     = $('disconnectBtn');
+const viewerStatusEl    = $('viewerStatus');
+const tapOverlay        = $('tapOverlay');
+const reconnectOverlay  = $('reconnectOverlay');
+const reconnectOverlayMsg = $('reconnectOverlayMsg');
+const reconnectStrip    = $('reconnectStrip');
+const reconnectMsg      = $('reconnectMsg');
+const liveBadge         = $('liveBadge');
+const roomInput         = $('roomInput');
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function shortId() {
-  return Math.random().toString(36).slice(2, 7).toUpperCase();
-}
-
-function isMobile() {
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
-
+// ── Status helpers ────────────────────────────────────────────────────────────
 function setStatus(el, msg, type = '') {
-  el.textContent = msg;
-  el.className = 'status ' + type;
+  el.querySelector('.msg').textContent = msg;
+  el.className = 'status-bar ' + type;
 }
+
+function setHostStatus(msg, type)   { setStatus(hostStatusEl,   msg, type); }
+function setViewerStatus(msg, type) { setStatus(viewerStatusEl, msg, type); }
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function shortId() { return Math.random().toString(36).slice(2,7).toUpperCase(); }
+function isMobile() { return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent); }
+function safeDestroy(p) { if (p && !p.destroyed) { try { p.destroy(); } catch(_){} } }
 
 function makePeer(id) {
   const cfg = {
     config: {
       iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun.l.google.com:19302'  },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
         { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
       ]
     }
   };
   return id ? new Peer(id, cfg) : new Peer(cfg);
 }
 
-function safeDestroy(p) {
-  if (p && !p.destroyed) { try { p.destroy(); } catch (_) {} }
-}
-
+// ── Tap-to-play ───────────────────────────────────────────────────────────────
 function tryPlay(video) {
   const p = video.play();
-  if (p) p.catch(() => { tapOverlay.classList.remove('hidden'); });
+  if (p) p.catch(() => tapOverlay.classList.remove('hidden'));
 }
 
 tapOverlay.addEventListener('click', () => {
@@ -235,204 +660,404 @@ tapOverlay.addEventListener('click', () => {
   tapOverlay.classList.add('hidden');
 });
 
-// ─── Copy button ──────────────────────────────────────────────────────────────
+// ── Copy button ───────────────────────────────────────────────────────────────
 copyBtn.addEventListener('click', () => {
   const txt = hostIdBox.textContent;
   navigator.clipboard.writeText(txt).then(() => {
-    copyBtn.textContent = 'Copied!';
-    setTimeout(() => { copyBtn.textContent = 'Copy ID'; }, 1500);
-  }).catch(() => {
-    prompt('Copy this ID:', txt);
-  });
+    copyBtn.textContent = '✓ Copied';
+    copyBtn.classList.add('copied');
+    setTimeout(() => {
+      copyBtn.textContent = 'Copy ID';
+      copyBtn.classList.remove('copied');
+    }, 1800);
+  }).catch(() => prompt('Copy this ID:', txt));
 });
 
-// ─── HOST ─────────────────────────────────────────────────────────────────────
-// Flow:
-//   1. Get screen (desktop) or camera (mobile)
-//   2. Create PeerJS peer with a short ID
-//   3. Wait for viewer to open a DataConnection → then call VIEWER with the stream
-//      (host → viewer is the correct WebRTC one-way streaming direction)
-
+// ─────────────────────────────────────────────────────────────────────────────
+// HOST
+// ─────────────────────────────────────────────────────────────────────────────
 hostBtn.onclick = async () => {
   hostPanel.style.display = 'block';
   viewerPanel.style.display = 'none';
+  hostBtn.classList.add('active');
+  viewerBtn.classList.remove('active');
   hostNotice.style.display = 'none';
   copyBtn.style.display = 'none';
-  hostIdBox.textContent = '…';
-  setStatus(hostStatus, 'Getting stream…');
-
+  liveBadge.classList.add('hidden');
+  hostIdBox.textContent = '——';
+  setHostStatus('Requesting stream access…');
   safeDestroy(hostPeer);
 
-  // 1. Get stream
+  // 1 ── Get stream (max quality / max FPS)
   try {
     if (isMobile() || typeof navigator.mediaDevices.getDisplayMedia !== 'function') {
+      // Mobile: camera (getDisplayMedia not supported on mobile)
       localStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: {
+          facingMode:  'environment',
+          width:       { ideal: 3840 },
+          height:      { ideal: 2160 },
+          frameRate:   { ideal: 60, max: 60 },
+          aspectRatio: { ideal: 16/9 }
+        },
         audio: false
       });
-      hostNotice.textContent = '📱 Mobile detected — sharing camera (screen share is not supported on mobile browsers).';
-      hostNotice.style.display = 'block';
+      hostNoticeText.textContent =
+        'Mobile detected — sharing rear camera at max available quality. ' +
+        'Screen share is not supported on mobile browsers.';
+      hostNotice.style.display = 'flex';
     } else {
-      localStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: false });
+      // Desktop: screen capture at max FPS / max resolution
+      localStream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          width:     { ideal: 3840 },
+          height:    { ideal: 2160 },
+          frameRate: { ideal: 60, max: 60 },
+        },
+        audio: false
+      });
     }
   } catch (e) {
-    setStatus(hostStatus, '❌ Could not access camera/screen: ' + (e.message || e), 'err');
+    setHostStatus('❌ Access denied: ' + (e.message || e), 'err');
     return;
   }
 
   hostVideo.srcObject = localStream;
   hostVideo.play().catch(() => {});
 
-  // Stop sharing when user clicks browser "Stop" button
+  // When user clicks browser "Stop sharing"
   localStream.getVideoTracks()[0].addEventListener('ended', () => {
-    setStatus(hostStatus, 'Stream stopped.', 'warn');
+    setHostStatus('Stream stopped by user.', 'warn');
+    liveBadge.classList.add('hidden');
     safeDestroy(hostPeer);
   });
 
-  // 2. Create peer
-  setStatus(hostStatus, 'Creating peer…');
+  // 2 ── Create peer with short ID
+  setHostStatus('Setting up connection…');
   const id = shortId();
   hostPeer = makePeer(id);
 
-  hostPeer.on('error', (e) => {
-    // If ID is taken, try a new one
+  hostPeer.on('error', e => {
     if (e.type === 'unavailable-id') {
       hostPeer.destroy();
       hostPeer = makePeer(shortId());
       wireHostPeer(hostPeer);
       return;
     }
-    setStatus(hostStatus, '❌ Error: ' + e.message, 'err');
+    setHostStatus('Error: ' + e.message, 'err');
     console.error('Host peer error:', e);
+  });
+
+  // Keep peer alive even if signaling server drops
+  hostPeer.on('disconnected', () => {
+    if (!hostPeer.destroyed) {
+      try { hostPeer.reconnect(); } catch(_){}
+    }
   });
 
   wireHostPeer(hostPeer);
 };
 
 function wireHostPeer(p) {
-  p.on('open', (openId) => {
+  p.on('open', openId => {
     hostIdBox.textContent = openId;
     copyBtn.style.display = 'inline-block';
-    setStatus(hostStatus, '✅ Ready — share your ID with viewers.', 'ok');
+    setHostStatus('Ready — share your ID with viewers.', 'ok');
   });
 
-  // 3. When a viewer opens a DataConnection, call them back with the stream
-  p.on('connection', (conn) => {
-    setStatus(hostStatus, '🔗 Viewer connecting…', 'warn');
+  // 3 ── When viewer sends a DataConnection, call them back with the stream
+  p.on('connection', conn => {
+    setHostStatus('Viewer connecting…', 'warn');
+
     conn.on('open', () => {
-      // Call the viewer's peer ID with our stream
       const call = p.call(conn.peer, localStream);
-      if (!call) {
-        setStatus(hostStatus, '❌ Failed to call viewer.', 'err');
-        return;
-      }
-      setStatus(hostStatus, '📡 Streaming to viewer…', 'ok');
-      call.on('error', (e) => {
-        setStatus(hostStatus, '❌ Call error: ' + e.message, 'err');
-      });
-      call.on('close', () => {
-        setStatus(hostStatus, '✅ Ready — viewer disconnected. Waiting for new viewers.', 'ok');
+      if (!call) { setHostStatus('Failed to reach viewer.', 'err'); return; }
+
+      liveBadge.classList.remove('hidden');
+      setHostStatus('Streaming to viewer.', 'ok');
+
+      // Boost bitrate/quality on the sender side if browser supports it
+      try {
+        const senders = call.peerConnection.getSenders();
+        senders.forEach(sender => {
+          if (sender.track && sender.track.kind === 'video') {
+            const params = sender.getParameters();
+            if (!params.encodings) params.encodings = [{}];
+            params.encodings[0].maxBitrate    = 8_000_000; // 8 Mbps
+            params.encodings[0].maxFramerate  = 60;
+            params.encodings[0].networkPriority = 'high';
+            sender.setParameters(params).catch(() => {});
+          }
+        });
+      } catch (_) {}
+
+      call.on('error',  e => setHostStatus('Call error: ' + e.message, 'err'));
+      call.on('close',  () => {
+        liveBadge.classList.add('hidden');
+        setHostStatus('Viewer disconnected. Waiting for new viewers.', 'ok');
       });
     });
-    conn.on('error', (e) => {
-      setStatus(hostStatus, '❌ Connection error: ' + e.message, 'err');
-    });
+
+    conn.on('error', e => setHostStatus('Connection error: ' + e.message, 'err'));
   });
 }
 
-// ─── VIEWER ───────────────────────────────────────────────────────────────────
-// Flow:
-//   1. Create PeerJS peer (random ID)
-//   2. Open a DataConnection to host (this signals our peer ID to the host)
-//   3. Host calls us back with the stream
-//   4. We answer() with no stream and receive remote stream
-
+// ─────────────────────────────────────────────────────────────────────────────
+// VIEWER
+// ─────────────────────────────────────────────────────────────────────────────
 viewerBtn.onclick = () => {
   hostPanel.style.display = 'none';
   viewerPanel.style.display = 'block';
+  viewerBtn.classList.add('active');
+  hostBtn.classList.remove('active');
 };
 
 connectBtn.onclick = () => {
   const hostId = roomInput.value.trim().toUpperCase();
-  if (!hostId) { alert('Enter the host ID.'); return; }
+  if (!hostId) { roomInput.focus(); return; }
+  savedHostId        = hostId;
+  reconnectAttempts  = 0;
+  manualDisconnect   = false;
+  doConnect(hostId);
+};
 
-  // Reset UI
-  connectBtn.disabled = true;
-  disconnectBtn.style.display = 'none';
-  tapOverlay.classList.add('hidden');
+disconnectBtn.onclick = () => {
+  manualDisconnect = true;
+  clearTimers();
+  safeDestroy(viewerPeer);
   viewerVideo.srcObject = null;
-  setStatus(viewerStatus, '🔄 Creating peer…');
+  reconnectStrip.classList.remove('visible');
+  reconnectOverlay.classList.add('hidden');
+  disconnectBtn.style.display = 'none';
+  connectBtn.disabled = false;
+  setViewerStatus('Disconnected.');
+};
 
+// ── Core connect function (called on first connect + every auto-reconnect) ────
+function doConnect(hostId) {
+  clearTimers();
+  connectBtn.disabled = true;
+  tapOverlay.classList.add('hidden');
   safeDestroy(viewerPeer);
 
-  // 1. Create viewer peer with random ID
+  if (isAutoReconnecting) {
+    reconnectOverlayMsg.textContent = `Reconnecting… (attempt ${reconnectAttempts} of ${MAX_RECONNECT})`;
+    reconnectOverlay.classList.remove('hidden');
+  } else {
+    reconnectOverlay.classList.add('hidden');
+  }
+
+  setViewerStatus(isAutoReconnecting ? `Reconnecting… (${reconnectAttempts}/${MAX_RECONNECT})` : 'Creating peer…');
+
+  // Create viewer peer
   viewerPeer = makePeer();
 
-  viewerPeer.on('error', (e) => {
-    setStatus(viewerStatus, '❌ ' + e.message, 'err');
-    connectBtn.disabled = false;
+  viewerPeer.on('error', e => {
     console.error('Viewer peer error:', e);
+    setViewerStatus('Peer error: ' + e.message, 'err');
+    if (!manualDisconnect) scheduleReconnect();
+    else connectBtn.disabled = false;
   });
 
-  viewerPeer.on('open', (myId) => {
-    setStatus(viewerStatus, '🔄 Connecting to host…');
+  // Keep signaling connection alive
+  viewerPeer.on('disconnected', () => {
+    if (!viewerPeer.destroyed && !manualDisconnect) {
+      try { viewerPeer.reconnect(); } catch(_) {}
+    }
+  });
 
-    // 2. Open a DataConnection to host — this gives host our peer ID
-    const conn = viewerPeer.connect(hostId, { reliable: true });
+  viewerPeer.on('open', myId => {
+    if (manualDisconnect) return;
+    setViewerStatus('Reaching host…');
 
-    conn.on('error', (e) => {
-      setStatus(viewerStatus, '❌ Could not reach host. Check the ID.', 'err');
-      connectBtn.disabled = false;
+    // Open DataConnection to host → host will call us back with the stream
+    currentDataConn = viewerPeer.connect(hostId, { reliable: true });
+
+    currentDataConn.on('error', e => {
+      setViewerStatus('Could not reach host. Check the ID.', 'err');
+      if (!manualDisconnect) scheduleReconnect();
+      else connectBtn.disabled = false;
     });
 
-    conn.on('close', () => {
-      if (!viewerVideo.srcObject) {
-        setStatus(viewerStatus, '⚠️ Connection closed before stream arrived.', 'warn');
-        connectBtn.disabled = false;
+    // Start keepalive pings over data channel
+    currentDataConn.on('open', () => startKeepalive(currentDataConn));
+
+    currentDataConn.on('close', () => {
+      if (!manualDisconnect && viewerVideo.srcObject) {
+        // Data channel closed but we might still have video — don't reconnect yet
+        // Video health check will catch if stream actually dies
       }
     });
   });
 
-  // 3. Host will call us — answer with no stream to receive theirs
-  viewerPeer.on('call', (call) => {
-    setStatus(viewerStatus, '📡 Receiving stream…');
-    call.answer(); // answer with no stream — we only want to receive
+  // Host calls us → answer with no stream → receive theirs
+  viewerPeer.on('call', call => {
+    if (manualDisconnect) return;
+    setViewerStatus('Receiving stream…');
+    call.answer(); // answer with no outbound stream
 
-    call.on('stream', (remoteStream) => {
+    call.on('stream', remoteStream => {
+      reconnectOverlay.classList.add('hidden');
+      reconnectStrip.classList.remove('visible');
+      reconnectAttempts  = 0;
+      isAutoReconnecting = false;
+
       viewerVideo.srcObject = remoteStream;
-      setStatus(viewerStatus, '✅ Connected!', 'ok');
+      setViewerStatus('Connected — streaming live.', 'ok');
       connectBtn.disabled = false;
       disconnectBtn.style.display = 'inline-block';
       tryPlay(viewerVideo);
+
+      // Monitor ICE connection state
+      wireICEMonitor(call);
+
+      // Start video health check (detect stalled/frozen video)
+      startHealthCheck(remoteStream);
     });
 
-    call.on('error', (e) => {
-      setStatus(viewerStatus, '❌ Stream error: ' + e.message, 'err');
-      connectBtn.disabled = false;
+    call.on('error', e => {
+      setViewerStatus('Stream error: ' + e.message, 'err');
+      if (!manualDisconnect) scheduleReconnect();
     });
 
     call.on('close', () => {
-      setStatus(viewerStatus, '⚠️ Stream ended by host.', 'warn');
-      disconnectBtn.style.display = 'none';
+      if (!manualDisconnect) {
+        setViewerStatus('Stream closed. Reconnecting…', 'warn');
+        scheduleReconnect();
+      }
     });
   });
 
-  // Timeout — if no stream within 15s, tell user
-  setTimeout(() => {
-    if (!viewerVideo.srcObject) {
-      setStatus(viewerStatus, '⏱ Timed out — no stream received. Check the ID and try again.', 'err');
-      connectBtn.disabled = false;
+  // Timeout: no stream within 16 seconds
+  const timeoutId = setTimeout(() => {
+    if (!viewerVideo.srcObject && !manualDisconnect) {
+      setViewerStatus('Timed out — no stream received. Retrying…', 'err');
+      scheduleReconnect();
     }
-  }, 15000);
-};
+  }, 16000);
 
-disconnectBtn.onclick = () => {
-  safeDestroy(viewerPeer);
-  viewerVideo.srcObject = null;
-  disconnectBtn.style.display = 'none';
-  connectBtn.disabled = false;
-  setStatus(viewerStatus, 'Disconnected. Enter an ID to reconnect.');
-};
+  // Cancel timeout if we get a stream
+  const origSrcObjDesc = Object.getOwnPropertyDescriptor(HTMLVideoElement.prototype, 'srcObject');
+  // We'll cancel in the 'stream' handler instead — stored timeoutId in closure above
+  // (cleared by clearTimers() → we track it)
+  viewerTimeoutId = timeoutId;
+}
+
+let viewerTimeoutId = null;
+
+function clearTimers() {
+  clearInterval(keepaliveTimer);
+  clearInterval(healthCheckTimer);
+  clearTimeout(reconnectTimer);
+  clearTimeout(viewerTimeoutId);
+  keepaliveTimer   = null;
+  healthCheckTimer = null;
+  reconnectTimer   = null;
+  viewerTimeoutId  = null;
+}
+
+// ── Keepalive: ping every 20s to prevent signaling server timeout ─────────────
+function startKeepalive(conn) {
+  clearInterval(keepaliveTimer);
+  keepaliveTimer = setInterval(() => {
+    if (conn && conn.open) {
+      try { conn.send({ type: 'ping', t: Date.now() }); } catch(_) {}
+    }
+  }, 20000);
+}
+
+// ── ICE monitor: detect disconnected/failed state and reconnect ───────────────
+function wireICEMonitor(call) {
+  try {
+    const pc = call.peerConnection;
+    if (!pc) return;
+
+    pc.oniceconnectionstatechange = () => {
+      const state = pc.iceConnectionState;
+      console.log('ICE state:', state);
+      if ((state === 'disconnected' || state === 'failed') && !manualDisconnect) {
+        setViewerStatus('Connection interrupted. Reconnecting…', 'warn');
+        scheduleReconnect();
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      const state = pc.connectionState;
+      console.log('Connection state:', state);
+      if ((state === 'disconnected' || state === 'failed') && !manualDisconnect) {
+        setViewerStatus('Connection lost. Reconnecting…', 'warn');
+        scheduleReconnect();
+      }
+    };
+  } catch(e) {
+    console.warn('Could not wire ICE monitor:', e);
+  }
+}
+
+// ── Video health check: detect frozen/stalled video and reconnect ─────────────
+function startHealthCheck(stream) {
+  clearInterval(healthCheckTimer);
+  lastVideoTime = -1;
+  let stallCount = 0;
+
+  healthCheckTimer = setInterval(() => {
+    if (manualDisconnect || !viewerVideo.srcObject) { clearInterval(healthCheckTimer); return; }
+
+    // Check if the video track itself is alive
+    const tracks = stream.getVideoTracks();
+    if (tracks.length > 0 && tracks[0].readyState === 'ended') {
+      console.warn('Video track ended — reconnecting');
+      if (!manualDisconnect) scheduleReconnect();
+      clearInterval(healthCheckTimer);
+      return;
+    }
+
+    // Check for frozen frame (currentTime not advancing while playing)
+    if (!viewerVideo.paused && viewerVideo.currentTime > 0) {
+      if (viewerVideo.currentTime === lastVideoTime) {
+        stallCount++;
+        if (stallCount >= 2) { // stalled for ~10s
+          console.warn('Video stalled — reconnecting');
+          if (!manualDisconnect) scheduleReconnect();
+          clearInterval(healthCheckTimer);
+        }
+      } else {
+        stallCount = 0;
+      }
+      lastVideoTime = viewerVideo.currentTime;
+    }
+  }, 5000);
+}
+
+// ── Reconnect with exponential backoff ────────────────────────────────────────
+function scheduleReconnect() {
+  if (manualDisconnect) return;
+  if (reconnectAttempts >= MAX_RECONNECT) {
+    setViewerStatus(`Could not reconnect after ${MAX_RECONNECT} attempts. Please reconnect manually.`, 'err');
+    reconnectStrip.classList.remove('visible');
+    reconnectOverlay.classList.add('hidden');
+    connectBtn.disabled = false;
+    isAutoReconnecting = false;
+    return;
+  }
+
+  clearTimers();
+  isAutoReconnecting = true;
+  reconnectAttempts++;
+
+  const delay = Math.min(1200 * Math.pow(1.6, reconnectAttempts - 1), 12000);
+  const secs  = (delay / 1000).toFixed(1);
+
+  setViewerStatus(`Reconnecting in ${secs}s… (${reconnectAttempts}/${MAX_RECONNECT})`, 'warn');
+  reconnectMsg.textContent = `Reconnecting in ${secs}s… (attempt ${reconnectAttempts} of ${MAX_RECONNECT})`;
+  reconnectStrip.classList.add('visible');
+  reconnectOverlay.classList.remove('hidden');
+  reconnectOverlayMsg.textContent = `Stream interrupted — reconnecting in ${secs}s…`;
+
+  reconnectTimer = setTimeout(() => {
+    if (!manualDisconnect) doConnect(savedHostId);
+  }, delay);
+}
 </script>
 
 </body>
