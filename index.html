@@ -3,153 +3,168 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Simple Screen Stream (Fixed)</title>
-
+  <title>Screen Stream</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
   <style>
-    * { box-sizing: border-box; margin:0; padding:0; font-family: Arial; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
 
     body {
-      background:#0b0f16;
-      color:white;
-      min-height:100vh;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      padding:20px;
+      background: #0b0f16;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
     }
 
     .app {
-      width:100%; max-width:800px;
-      background:#121826;
-      padding:20px;
-      border-radius:18px;
+      width: 100%;
+      max-width: 800px;
+      background: #121826;
+      padding: 20px;
+      border-radius: 18px;
+      margin-top: 20px;
     }
+
+    h2 { margin-bottom: 16px; }
 
     button {
-      padding:12px;
-      border:none;
-      border-radius:10px;
-      background:#2563eb;
-      color:white;
-      cursor:pointer;
-      margin:6px 6px 6px 0;
+      padding: 12px 18px;
+      border: none;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+      margin: 6px 6px 6px 0;
+      font-size: 1rem;
+      transition: opacity 0.2s;
     }
-
-    button:disabled {
-      opacity:0.5;
-      cursor:not-allowed;
-    }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button.secondary { background: #374151; }
 
     input {
-      width:100%;
-      padding:12px;
-      margin-top:10px;
-      border-radius:10px;
-      border:1px solid #333;
-      background:#0b0f16;
-      color:white;
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 10px;
+      border: 1px solid #333;
+      background: #0b0f16;
+      color: white;
+      font-size: 1rem;
     }
 
     video {
-      width:100%;
-      margin-top:15px;
-      background:black;
-      border-radius:12px;
+      width: 100%;
+      margin-top: 14px;
+      background: #000;
+      border-radius: 12px;
+      display: block;
     }
 
     .card {
-      margin-top:15px;
-      padding:15px;
-      background:#0f1724;
-      border-radius:14px;
+      margin-top: 16px;
+      padding: 16px;
+      background: #0f1724;
+      border-radius: 14px;
+    }
+
+    .id-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
     }
 
     .idBox {
-      margin-top:10px;
-      font-size:1.2rem;
-      color:#60a5fa;
-      word-break:break-all;
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #60a5fa;
+      letter-spacing: 2px;
+      word-break: break-all;
     }
 
-    .notice {
-      margin-top:8px;
-      font-size:0.85rem;
-      color:#f59e0b;
-      background:#1f1a09;
-      border-radius:8px;
-      padding:8px 10px;
+    .copy-btn {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      margin: 0;
+      background: #1e3a5f;
+      border-radius: 6px;
     }
 
     .status {
-      margin-top:8px;
-      font-size:0.85rem;
-      color:#94a3b8;
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      background: #0b0f16;
+      color: #94a3b8;
+      min-height: 36px;
+    }
+    .status.ok   { color: #4ade80; }
+    .status.warn { color: #f59e0b; }
+    .status.err  { color: #f87171; }
+
+    .notice {
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: #1f1a09;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: #fbbf24;
     }
 
     /* Tap-to-play overlay */
-    .video-wrap {
-      position:relative;
-      margin-top:15px;
+    .video-wrap { position: relative; }
+    .tap-overlay {
+      position: absolute;
+      inset: 0;
+      margin-top: 14px;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      gap: 8px;
     }
-
-    .video-wrap video {
-      margin-top:0;
-      display:block;
-    }
-
-    #tapOverlay {
-      position:absolute;
-      inset:0;
-      background:rgba(0,0,0,0.55);
-      border-radius:12px;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      cursor:pointer;
-      gap:10px;
-    }
-
-    #tapOverlay span {
-      font-size:1rem;
-      color:white;
-    }
-
-    #tapOverlay svg {
-      width:52px; height:52px;
-      fill:white;
-      opacity:0.9;
-    }
-
-    #tapOverlay.hidden { display:none; }
+    .tap-overlay svg { width: 56px; height: 56px; fill: white; opacity: 0.9; }
+    .tap-overlay span { font-size: 1rem; color: white; }
+    .tap-overlay.hidden { display: none; }
   </style>
 </head>
 <body>
 
 <div class="app">
-  <h2>Screen Stream (Stable + Short IDs)</h2>
+  <h2>📺 Screen Stream</h2>
 
-  <button id="hostBtn">Start Host</button>
-  <button id="viewerBtn">Join</button>
+  <button id="hostBtn">▶ Start Sharing</button>
+  <button id="viewerBtn">👁 Join Stream</button>
 
+  <!-- HOST PANEL -->
   <div class="card" id="hostPanel" style="display:none;">
     <h3>HOST</h3>
-    <div class="idBox" id="hostId">Generating...</div>
-    <div id="hostNotice" class="notice" style="display:none;"></div>
+    <div class="id-row">
+      <div class="idBox" id="hostId">…</div>
+      <button class="copy-btn" id="copyBtn" style="display:none;">Copy ID</button>
+    </div>
+    <div class="status" id="hostStatus">Starting…</div>
+    <div class="notice" id="hostNotice" style="display:none;"></div>
     <video id="hostVideo" autoplay muted playsinline></video>
   </div>
 
+  <!-- VIEWER PANEL -->
   <div class="card" id="viewerPanel" style="display:none;">
     <h3>VIEWER</h3>
-    <input id="roomInput" placeholder="Enter ID" />
+    <input id="roomInput" placeholder="Enter host ID" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
     <button id="connectBtn">Connect</button>
-    <div class="status" id="viewerStatus"></div>
+    <button class="secondary" id="disconnectBtn" style="display:none;">Disconnect</button>
+    <div class="status" id="viewerStatus">Enter the host's ID and press Connect.</div>
     <div class="video-wrap">
       <video id="viewerVideo" autoplay muted playsinline></video>
-      <!-- Tap-to-play overlay for mobile autoplay policy -->
-      <div id="tapOverlay" class="hidden">
+      <div class="tap-overlay hidden" id="tapOverlay">
         <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
         <span>Tap to play</span>
       </div>
@@ -158,180 +173,265 @@
 </div>
 
 <script>
-let peer;
-let stream;
+// ─── State ────────────────────────────────────────────────────────────────────
+let hostPeer, viewerPeer, localStream;
 
-const hostBtn    = document.getElementById('hostBtn');
-const viewerBtn  = document.getElementById('viewerBtn');
-const hostPanel  = document.getElementById('hostPanel');
-const viewerPanel= document.getElementById('viewerPanel');
-const hostVideo  = document.getElementById('hostVideo');
-const viewerVideo= document.getElementById('viewerVideo');
-const hostIdBox  = document.getElementById('hostId');
-const hostNotice = document.getElementById('hostNotice');
-const connectBtn = document.getElementById('connectBtn');
+// ─── Elements ─────────────────────────────────────────────────────────────────
+const hostBtn      = document.getElementById('hostBtn');
+const viewerBtn    = document.getElementById('viewerBtn');
+const hostPanel    = document.getElementById('hostPanel');
+const viewerPanel  = document.getElementById('viewerPanel');
+const hostVideo    = document.getElementById('hostVideo');
+const viewerVideo  = document.getElementById('viewerVideo');
+const hostIdBox    = document.getElementById('hostId');
+const copyBtn      = document.getElementById('copyBtn');
+const hostStatus   = document.getElementById('hostStatus');
+const hostNotice   = document.getElementById('hostNotice');
+const connectBtn   = document.getElementById('connectBtn');
+const disconnectBtn= document.getElementById('disconnectBtn');
 const viewerStatus = document.getElementById('viewerStatus');
-const tapOverlay = document.getElementById('tapOverlay');
+const tapOverlay   = document.getElementById('tapOverlay');
+const roomInput    = document.getElementById('roomInput');
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function shortId() {
-  return Math.random().toString(36).slice(2, 8);
+  return Math.random().toString(36).slice(2, 7).toUpperCase();
 }
 
 function isMobile() {
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-function createPeer(id) {
+function setStatus(el, msg, type = '') {
+  el.textContent = msg;
+  el.className = 'status ' + type;
+}
+
+function makePeer(id) {
   const cfg = {
     config: {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
       ]
     }
   };
   return id ? new Peer(id, cfg) : new Peer(cfg);
 }
 
-// Try to play video; show tap overlay if blocked (mobile autoplay policy)
-function tryPlay(videoEl) {
-  const p = videoEl.play();
-  if (p !== undefined) {
-    p.catch(() => {
-      tapOverlay.classList.remove('hidden');
-    });
-  }
+function safeDestroy(p) {
+  if (p && !p.destroyed) { try { p.destroy(); } catch (_) {} }
+}
+
+function tryPlay(video) {
+  const p = video.play();
+  if (p) p.catch(() => { tapOverlay.classList.remove('hidden'); });
 }
 
 tapOverlay.addEventListener('click', () => {
-  viewerVideo.muted = false; // unmute on explicit user tap if desired
   viewerVideo.play().catch(() => {});
   tapOverlay.classList.add('hidden');
 });
 
-// ── HOST ─────────────────────────────────────────────────────────────────────
+// ─── Copy button ──────────────────────────────────────────────────────────────
+copyBtn.addEventListener('click', () => {
+  const txt = hostIdBox.textContent;
+  navigator.clipboard.writeText(txt).then(() => {
+    copyBtn.textContent = 'Copied!';
+    setTimeout(() => { copyBtn.textContent = 'Copy ID'; }, 1500);
+  }).catch(() => {
+    prompt('Copy this ID:', txt);
+  });
+});
+
+// ─── HOST ─────────────────────────────────────────────────────────────────────
+// Flow:
+//   1. Get screen (desktop) or camera (mobile)
+//   2. Create PeerJS peer with a short ID
+//   3. Wait for viewer to open a DataConnection → then call VIEWER with the stream
+//      (host → viewer is the correct WebRTC one-way streaming direction)
 
 hostBtn.onclick = async () => {
   hostPanel.style.display = 'block';
   viewerPanel.style.display = 'none';
   hostNotice.style.display = 'none';
+  copyBtn.style.display = 'none';
+  hostIdBox.textContent = '…';
+  setStatus(hostStatus, 'Getting stream…');
 
-  const id = shortId();
-  peer = createPeer(id);
-  hostIdBox.innerText = 'ID: ' + id;
+  safeDestroy(hostPeer);
 
-  const mobile = isMobile();
-
+  // 1. Get stream
   try {
-    if (mobile || !navigator.mediaDevices.getDisplayMedia) {
-      // Mobile: getDisplayMedia not supported — fall back to camera
-      stream = await navigator.mediaDevices.getUserMedia({
+    if (isMobile() || typeof navigator.mediaDevices.getDisplayMedia !== 'function') {
+      localStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false
       });
-      hostNotice.textContent = '📱 Mobile detected — sharing camera (screen share not supported on mobile browsers).';
+      hostNotice.textContent = '📱 Mobile detected — sharing camera (screen share is not supported on mobile browsers).';
       hostNotice.style.display = 'block';
     } else {
-      // Desktop: screen share
-      stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: 30 },
-        audio: false
-      });
+      localStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: false });
     }
-
-    hostVideo.srcObject = stream;
-    hostVideo.play().catch(() => {});
-
-    // Answer any incoming calls with the stream
-    peer.on('call', (call) => {
-      call.answer(stream);
-      call.on('error', (e) => console.error('Call error:', e));
-    });
-
-    // If the user stops sharing (desktop stop-share button)
-    stream.getVideoTracks()[0].addEventListener('ended', () => {
-      hostIdBox.innerText = 'Stream ended.';
-      peer.destroy();
-    });
-
   } catch (e) {
-    alert('Could not access camera/screen: ' + (e.message || e));
-    console.error(e);
+    setStatus(hostStatus, '❌ Could not access camera/screen: ' + (e.message || e), 'err');
+    return;
   }
+
+  hostVideo.srcObject = localStream;
+  hostVideo.play().catch(() => {});
+
+  // Stop sharing when user clicks browser "Stop" button
+  localStream.getVideoTracks()[0].addEventListener('ended', () => {
+    setStatus(hostStatus, 'Stream stopped.', 'warn');
+    safeDestroy(hostPeer);
+  });
+
+  // 2. Create peer
+  setStatus(hostStatus, 'Creating peer…');
+  const id = shortId();
+  hostPeer = makePeer(id);
+
+  hostPeer.on('error', (e) => {
+    // If ID is taken, try a new one
+    if (e.type === 'unavailable-id') {
+      hostPeer.destroy();
+      hostPeer = makePeer(shortId());
+      wireHostPeer(hostPeer);
+      return;
+    }
+    setStatus(hostStatus, '❌ Error: ' + e.message, 'err');
+    console.error('Host peer error:', e);
+  });
+
+  wireHostPeer(hostPeer);
 };
 
-// ── VIEWER UI ────────────────────────────────────────────────────────────────
+function wireHostPeer(p) {
+  p.on('open', (openId) => {
+    hostIdBox.textContent = openId;
+    copyBtn.style.display = 'inline-block';
+    setStatus(hostStatus, '✅ Ready — share your ID with viewers.', 'ok');
+  });
+
+  // 3. When a viewer opens a DataConnection, call them back with the stream
+  p.on('connection', (conn) => {
+    setStatus(hostStatus, '🔗 Viewer connecting…', 'warn');
+    conn.on('open', () => {
+      // Call the viewer's peer ID with our stream
+      const call = p.call(conn.peer, localStream);
+      if (!call) {
+        setStatus(hostStatus, '❌ Failed to call viewer.', 'err');
+        return;
+      }
+      setStatus(hostStatus, '📡 Streaming to viewer…', 'ok');
+      call.on('error', (e) => {
+        setStatus(hostStatus, '❌ Call error: ' + e.message, 'err');
+      });
+      call.on('close', () => {
+        setStatus(hostStatus, '✅ Ready — viewer disconnected. Waiting for new viewers.', 'ok');
+      });
+    });
+    conn.on('error', (e) => {
+      setStatus(hostStatus, '❌ Connection error: ' + e.message, 'err');
+    });
+  });
+}
+
+// ─── VIEWER ───────────────────────────────────────────────────────────────────
+// Flow:
+//   1. Create PeerJS peer (random ID)
+//   2. Open a DataConnection to host (this signals our peer ID to the host)
+//   3. Host calls us back with the stream
+//   4. We answer() with no stream and receive remote stream
 
 viewerBtn.onclick = () => {
   hostPanel.style.display = 'none';
   viewerPanel.style.display = 'block';
 };
 
-// ── VIEWER CONNECT ───────────────────────────────────────────────────────────
-
 connectBtn.onclick = () => {
-  const id = document.getElementById('roomInput').value.trim();
-  if (!id) return alert('Enter an ID');
+  const hostId = roomInput.value.trim().toUpperCase();
+  if (!hostId) { alert('Enter the host ID.'); return; }
 
+  // Reset UI
   connectBtn.disabled = true;
-  viewerStatus.textContent = 'Connecting…';
+  disconnectBtn.style.display = 'none';
   tapOverlay.classList.add('hidden');
+  viewerVideo.srcObject = null;
+  setStatus(viewerStatus, '🔄 Creating peer…');
 
-  // Destroy any previous peer
-  if (peer) { try { peer.destroy(); } catch(_){} }
+  safeDestroy(viewerPeer);
 
-  peer = createPeer(); // viewer has no fixed ID
+  // 1. Create viewer peer with random ID
+  viewerPeer = makePeer();
 
-  peer.on('error', (e) => {
-    viewerStatus.textContent = 'Error: ' + e.message;
+  viewerPeer.on('error', (e) => {
+    setStatus(viewerStatus, '❌ ' + e.message, 'err');
     connectBtn.disabled = false;
-    console.error('Peer error:', e);
+    console.error('Viewer peer error:', e);
   });
 
-  peer.on('open', () => {
-    viewerStatus.textContent = 'Peer ready, calling host…';
+  viewerPeer.on('open', (myId) => {
+    setStatus(viewerStatus, '🔄 Connecting to host…');
 
-    // We pass a null/empty stream — we only want to receive
-    // PeerJS requires a stream arg; create a silent one if needed
-    let callObj;
-    try {
-      callObj = peer.call(id, null);
-    } catch (_) {
-      // Some PeerJS versions reject null — create a dummy silent stream
-      const ctx = new AudioContext();
-      const dest = ctx.createMediaStreamDestination();
-      callObj = peer.call(id, dest.stream);
-    }
+    // 2. Open a DataConnection to host — this gives host our peer ID
+    const conn = viewerPeer.connect(hostId, { reliable: true });
 
-    if (!callObj) {
-      viewerStatus.textContent = 'Failed to reach host. Check the ID.';
+    conn.on('error', (e) => {
+      setStatus(viewerStatus, '❌ Could not reach host. Check the ID.', 'err');
       connectBtn.disabled = false;
-      return;
-    }
+    });
 
-    callObj.on('stream', (remoteStream) => {
-      viewerStatus.textContent = 'Connected ✓';
-      connectBtn.disabled = false;
+    conn.on('close', () => {
+      if (!viewerVideo.srcObject) {
+        setStatus(viewerStatus, '⚠️ Connection closed before stream arrived.', 'warn');
+        connectBtn.disabled = false;
+      }
+    });
+  });
+
+  // 3. Host will call us — answer with no stream to receive theirs
+  viewerPeer.on('call', (call) => {
+    setStatus(viewerStatus, '📡 Receiving stream…');
+    call.answer(); // answer with no stream — we only want to receive
+
+    call.on('stream', (remoteStream) => {
       viewerVideo.srcObject = remoteStream;
+      setStatus(viewerStatus, '✅ Connected!', 'ok');
+      connectBtn.disabled = false;
+      disconnectBtn.style.display = 'inline-block';
       tryPlay(viewerVideo);
     });
 
-    callObj.on('error', (e) => {
-      viewerStatus.textContent = 'Call error: ' + e.message;
+    call.on('error', (e) => {
+      setStatus(viewerStatus, '❌ Stream error: ' + e.message, 'err');
       connectBtn.disabled = false;
-      console.error(e);
     });
 
-    // Timeout if no stream arrives
-    setTimeout(() => {
-      if (!viewerVideo.srcObject) {
-        viewerStatus.textContent = 'Timed out — no stream received. Check the ID.';
-        connectBtn.disabled = false;
-      }
-    }, 15000);
+    call.on('close', () => {
+      setStatus(viewerStatus, '⚠️ Stream ended by host.', 'warn');
+      disconnectBtn.style.display = 'none';
+    });
   });
+
+  // Timeout — if no stream within 15s, tell user
+  setTimeout(() => {
+    if (!viewerVideo.srcObject) {
+      setStatus(viewerStatus, '⏱ Timed out — no stream received. Check the ID and try again.', 'err');
+      connectBtn.disabled = false;
+    }
+  }, 15000);
+};
+
+disconnectBtn.onclick = () => {
+  safeDestroy(viewerPeer);
+  viewerVideo.srcObject = null;
+  disconnectBtn.style.display = 'none';
+  connectBtn.disabled = false;
+  setStatus(viewerStatus, 'Disconnected. Enter an ID to reconnect.');
 };
 </script>
 
