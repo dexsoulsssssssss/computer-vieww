@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mobile Screen Viewer</title>
+
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      background: #0f1115;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+      background: #171a21;
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.4);
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+
+    p {
+      color: #b8bec9;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 14px 18px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #2563eb;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid #333;
+      background: #0f1115;
+      color: white;
+      margin-bottom: 12px;
+      font-size: 1rem;
+    }
+
+    .card {
+      background: #10131a;
+      border-radius: 16px;
+      padding: 18px;
+      margin-top: 16px;
+    }
+
+    video {
+      width: 100%;
+      border-radius: 16px;
+      background: black;
+      margin-top: 12px;
+      max-height: 75vh;
+    }
+
+    .status {
+      margin-top: 10px;
+      color: #8fd18f;
+      word-break: break-word;
+    }
+
+    .small {
+      font-size: 0.9rem;
+      color: #a5acb8;
+    }
+
+    .room {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #60a5fa;
+      margin-top: 8px;
+      word-break: break-all;
+    }
+
+    @media (max-width: 700px) {
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📺 Mobile Screen Viewer</h1>
+    <p>
+      Stream your computer screen to your phone using WebRTC + PeerJS.
+      Works directly in the browser.
+    </p>
+
+    <div class="buttons">
+      <button id="hostBtn">Start Sharing Screen</button>
+      <button id="viewerBtn">Join As Viewer</button>
+    </div>
+
+    <div class="card" id="hostPanel" style="display:none;">
+      <h2>Host Mode</h2>
+      <p class="small">
+        Open this same page on your phone and enter the Room ID below.
+      </p>
+
+      <div class="room" id="roomId">Creating room...</div>
+
+      <video id="hostVideo" autoplay muted playsinline></video>
+
+      <div class="status" id="hostStatus"></div>
+    </div>
+
+    <div class="card" id="viewerPanel" style="display:none;">
+      <h2>Viewer Mode</h2>
+
+      <input type="text" id="roomInput" placeholder="Enter Room ID" />
+      <button id="connectBtn">Connect</button>
+
+      <video id="viewerVideo" autoplay playsinline controls></video>
+
+      <div class="status" id="viewerStatus"></div>
+    </div>
+  </div>
+
+  <script>
+    let peer;
+    let localStream;
+
+    const hostBtn = document.getElementById('hostBtn');
+    const viewerBtn = document.getElementById('viewerBtn');
+
+    const hostPanel = document.getElementById('hostPanel');
+    const viewerPanel = document.getElementById('viewerPanel');
+
+    const roomIdText = document.getElementById('roomId');
+    const hostVideo = document.getElementById('hostVideo');
+    const viewerVideo = document.getElementById('viewerVideo');
+
+    const hostStatus = document.getElementById('hostStatus');
+    const viewerStatus = document.getElementById('viewerStatus');
+
+    hostBtn.onclick = async () => {
+      hostPanel.style.display = 'block';
+      viewerPanel.style.display = 'none';
+
+      hostStatus.textContent = 'Requesting screen capture...';
+
+      try {
+        localStream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            frameRate: {
+              ideal: 60,
+              max: 60
+            },
+            width: {
+              ideal: 1920
+            },
+            height: {
+              ideal: 1080
+            }
+          },
+          audio: false
+        });
+
+        hostVideo.srcObject = localStream;
+
+        peer = new Peer();
+
+        peer.on('open', (id) => {
+          roomIdText.textContent = id;
+          hostStatus.textContent = 'Waiting for viewers...';
+        });
+
+        peer.on('call', (call) => {
+          call.answer(localStream);
+
+          hostStatus.textContent = 'Viewer connected!';
+        });
+
+        localStream.getVideoTracks()[0].addEventListener('ended', () => {
+          hostStatus.textContent = 'Screen sharing stopped.';
+        });
+
+      } catch (err) {
+        console.error(err);
+        hostStatus.textContent = 'Failed to start screen sharing.';
+      }
+    };
+
+    viewerBtn.onclick = () => {
+      viewerPanel.style.display = 'block';
+      hostPanel.style.display = 'none';
+    };
+
+    document.getElementById('connectBtn').onclick = async () => {
+      const roomId = document.getElementById('roomInput').value.trim();
+
+      if (!roomId) {
+        viewerStatus.textContent = 'Please enter a Room ID.';
+        return;
+      }
+
+      viewerStatus.textContent = 'Connecting...';
+
+      peer = new Peer();
+
+      peer.on('open', () => {
+        const call = peer.call(roomId, new MediaStream());
+
+        call.on('stream', (remoteStream) => {
+          viewerVideo.srcObject = remoteStream;
+          viewerStatus.textContent = 'Connected to stream!';
+
+          const videoTrack = remoteStream.getVideoTracks()[0];
+
+          if (videoTrack) {
+            const settings = videoTrack.getSettings();
+
+            console.log('Track settings:', settings);
+          }
+        });
+
+        call.on('close', () => {
+          viewerStatus.textContent = 'Connection closed.';
+        });
+
+        call.on('error', (err) => {
+          console.error(err);
+          viewerStatus.textContent = 'Connection error.';
+        });
+      });
+    };
+  </script>
+</body>
+</html>
