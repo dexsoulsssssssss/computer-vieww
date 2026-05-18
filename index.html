@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ultra Screen Stream FIXED</title>
+  <title>Simple Screen Stream (Fixed)</title>
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
@@ -21,32 +21,30 @@
     }
 
     .app {
-      width:100%;
-      max-width:900px;
+      width:100%; max-width:800px;
       background:#121826;
       padding:20px;
-      border-radius:20px;
+      border-radius:18px;
     }
 
     button {
-      padding:14px;
+      padding:12px;
       border:none;
-      border-radius:12px;
+      border-radius:10px;
       background:#2563eb;
       color:white;
       cursor:pointer;
-      margin-right:10px;
-      margin-top:10px;
+      margin:6px 6px 6px 0;
     }
 
     input {
       width:100%;
       padding:12px;
+      margin-top:10px;
       border-radius:10px;
       border:1px solid #333;
       background:#0b0f16;
       color:white;
-      margin-top:10px;
     }
 
     video {
@@ -60,27 +58,34 @@
       margin-top:15px;
       padding:15px;
       background:#0f1724;
-      border-radius:15px;
+      border-radius:14px;
+    }
+
+    .idBox {
+      margin-top:10px;
+      font-size:1.2rem;
+      color:#60a5fa;
+      word-break:break-all;
     }
   </style>
 </head>
 <body>
 
 <div class="app">
-  <h2>Screen Stream (Stable Fix)</h2>
+  <h2>Screen Stream (Stable + Short IDs)</h2>
 
-  <button id="hostBtn">Start Hosting</button>
-  <button id="viewerBtn">Join Stream</button>
+  <button id="hostBtn">Start Host</button>
+  <button id="viewerBtn">Join</button>
 
   <div class="card" id="hostPanel" style="display:none;">
     <h3>HOST</h3>
-    <div id="hostId"></div>
+    <div class="idBox" id="hostId">Generating...</div>
     <video id="hostVideo" autoplay muted playsinline></video>
   </div>
 
   <div class="card" id="viewerPanel" style="display:none;">
     <h3>VIEWER</h3>
-    <input id="roomInput" placeholder="Enter Host ID" />
+    <input id="roomInput" placeholder="Enter ID" />
     <button id="connectBtn">Connect</button>
     <video id="viewerVideo" autoplay playsinline></video>
   </div>
@@ -88,7 +93,7 @@
 
 <script>
 let peer;
-let localStream;
+let stream;
 
 const hostBtn = document.getElementById('hostBtn');
 const viewerBtn = document.getElementById('viewerBtn');
@@ -96,10 +101,14 @@ const hostPanel = document.getElementById('hostPanel');
 const viewerPanel = document.getElementById('viewerPanel');
 const hostVideo = document.getElementById('hostVideo');
 const viewerVideo = document.getElementById('viewerVideo');
-const hostIdEl = document.getElementById('hostId');
+const hostIdBox = document.getElementById('hostId');
 
-function createPeer() {
-  return new Peer(undefined, {
+function shortId() {
+  return Math.random().toString(36).slice(2, 8);
+}
+
+function createPeer(id) {
+  return new Peer(id, {
     config: {
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     }
@@ -111,66 +120,52 @@ hostBtn.onclick = async () => {
   hostPanel.style.display = 'block';
   viewerPanel.style.display = 'none';
 
+  const id = shortId();
+  peer = createPeer(id);
+
+  hostIdBox.innerText = "ID: " + id;
+
   try {
-    localStream = await navigator.mediaDevices.getDisplayMedia({
+    stream = await navigator.mediaDevices.getDisplayMedia({
       video: { frameRate: 30 },
       audio: false
     });
 
-    hostVideo.srcObject = localStream;
-
-    peer = createPeer();
-
-    peer.on('open', (id) => {
-      hostIdEl.innerText = "Host ID: " + id;
-    });
+    hostVideo.srcObject = stream;
 
     peer.on('call', (call) => {
-      call.answer(localStream);
+      call.answer(stream);
     });
 
   } catch (e) {
-    alert('Screen capture failed');
+    alert('Screen share failed');
     console.error(e);
   }
 };
 
-// SWITCH VIEWER
+// VIEWER UI
 viewerBtn.onclick = () => {
   hostPanel.style.display = 'none';
   viewerPanel.style.display = 'block';
 };
 
-// CONNECT
-connectBtn.onclick = async () => {
+// VIEWER CONNECT
+connectBtn.onclick = () => {
   const id = document.getElementById('roomInput').value.trim();
-
-  if (!id) return alert('Enter Host ID');
+  if (!id) return alert('Enter ID');
 
   peer = createPeer();
 
-  peer.on('open', async () => {
-
-    let fakeStream;
-    try {
-      fakeStream = await navigator.mediaDevices.getUserMedia({
-        video: false,
-        audio: false
-      });
-    } catch (e) {
-      fakeStream = new MediaStream();
-    }
-
-    const call = peer.call(id, fakeStream);
+  peer.on('open', () => {
+    const call = peer.call(id, null);
 
     call.on('stream', (remoteStream) => {
-      console.log('stream received');
-
       viewerVideo.srcObject = remoteStream;
 
-      viewerVideo.play().catch(()=>{});
+      viewerVideo.onloadedmetadata = () => {
+        viewerVideo.play().catch(()=>{});
+      };
     });
-
   });
 };
 </script>
