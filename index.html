@@ -3,416 +3,177 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ultra Screen Stream</title>
+  <title>Ultra Screen Stream FIXED</title>
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: Arial, sans-serif;
-    }
+    * { box-sizing: border-box; margin:0; padding:0; font-family: Arial; }
 
     body {
-      background: #0b0f16;
-      color: white;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
+      background:#0b0f16;
+      color:white;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding:20px;
     }
 
     .app {
-      width: 100%;
-      max-width: 1000px;
-      background: #121826;
-      border-radius: 24px;
-      padding: 24px;
-      box-shadow: 0 0 50px rgba(0,0,0,0.4);
-    }
-
-    h1 {
-      font-size: 2.3rem;
-      margin-bottom: 10px;
-    }
-
-    p {
-      color: #aab4c5;
-      line-height: 1.6;
-      margin-bottom: 16px;
-    }
-
-    .row {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 20px;
+      width:100%;
+      max-width:900px;
+      background:#121826;
+      padding:20px;
+      border-radius:20px;
     }
 
     button {
-      background: #2563eb;
-      border: none;
-      color: white;
-      padding: 14px 20px;
-      border-radius: 14px;
-      font-size: 1rem;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #1d4ed8;
-    }
-
-    .card {
-      background: #0f1724;
-      border-radius: 18px;
-      padding: 18px;
-      margin-top: 16px;
-    }
-
-    video {
-      width: 100%;
-      border-radius: 18px;
-      background: #000;
-      object-fit: contain;
-      margin-top: 16px;
-      max-height: 75vh;
+      padding:14px;
+      border:none;
+      border-radius:12px;
+      background:#2563eb;
+      color:white;
+      cursor:pointer;
+      margin-right:10px;
+      margin-top:10px;
     }
 
     input {
-      width: 100%;
-      background: #0b0f16;
-      border: 1px solid #273043;
-      color: white;
-      padding: 14px;
-      border-radius: 12px;
-      margin-bottom: 12px;
+      width:100%;
+      padding:12px;
+      border-radius:10px;
+      border:1px solid #333;
+      background:#0b0f16;
+      color:white;
+      margin-top:10px;
     }
 
-    .status {
-      margin-top: 12px;
-      color: #7dd87d;
-      word-break: break-word;
+    video {
+      width:100%;
+      margin-top:15px;
+      background:black;
+      border-radius:12px;
     }
 
-    #qrcode {
-      background: white;
-      padding: 10px;
-      border-radius: 14px;
-      width: fit-content;
-      margin-top: 14px;
-    }
-
-    .stats {
-      margin-top: 12px;
-      color: #8fa4c5;
-      font-size: 0.95rem;
-    }
-
-    @media (max-width: 700px) {
-      h1 {
-        font-size: 1.6rem;
-      }
-
-      button {
-        width: 100%;
-      }
+    .card {
+      margin-top:15px;
+      padding:15px;
+      background:#0f1724;
+      border-radius:15px;
     }
   </style>
 </head>
 <body>
-  <div class="app">
-    <h1>⚡ Ultra Mobile Screen Stream</h1>
 
-    <p>
-      High-performance desktop streaming to phones using WebRTC.
-      Supports:
-      <br>
-      • QR auto connect
-      <br>
-      • Multi viewer support
-      <br>
-      • Ultra low latency
-      <br>
-      • Mobile optimized playback
-      <br>
-      • Audio streaming
-      <br>
-      • Bitrate optimization
-      <br>
-      • Near-60fps streaming
-    </p>
+<div class="app">
+  <h2>Screen Stream (Stable Fix)</h2>
 
-    <div class="row">
-      <button id="hostBtn">Start Hosting</button>
-      <button id="viewerBtn">Join Stream</button>
-    </div>
+  <button id="hostBtn">Start Hosting</button>
+  <button id="viewerBtn">Join Stream</button>
 
-    <div class="card" id="hostPanel" style="display:none;">
-      <h2>Host</h2>
-
-      <div class="status" id="hostStatus">Idle</div>
-
-      <div id="roomLink"></div>
-      <div id="qrcode"></div>
-
-      <div class="stats" id="hostStats"></div>
-
-      <video id="hostVideo" autoplay muted playsinline></video>
-    </div>
-
-    <div class="card" id="viewerPanel" style="display:none;">
-      <h2>Viewer</h2>
-
-      <input id="roomInput" placeholder="Paste room ID or URL" />
-
-      <button id="connectBtn">Connect</button>
-
-      <div class="status" id="viewerStatus">Idle</div>
-
-      <div class="stats" id="viewerStats"></div>
-
-      <video
-        id="viewerVideo"
-        autoplay
-        playsinline
-        muted
-      ></video>
-    </div>
+  <div class="card" id="hostPanel" style="display:none;">
+    <h3>HOST</h3>
+    <div id="hostId"></div>
+    <video id="hostVideo" autoplay muted playsinline></video>
   </div>
 
-  <script>
-    let peer;
-    let localStream;
-    let viewers = [];
+  <div class="card" id="viewerPanel" style="display:none;">
+    <h3>VIEWER</h3>
+    <input id="roomInput" placeholder="Enter Host ID" />
+    <button id="connectBtn">Connect</button>
+    <video id="viewerVideo" autoplay playsinline></video>
+  </div>
+</div>
 
-    const hostBtn = document.getElementById('hostBtn');
-    const viewerBtn = document.getElementById('viewerBtn');
+<script>
+let peer;
+let localStream;
 
-    const hostPanel = document.getElementById('hostPanel');
-    const viewerPanel = document.getElementById('viewerPanel');
+const hostBtn = document.getElementById('hostBtn');
+const viewerBtn = document.getElementById('viewerBtn');
+const hostPanel = document.getElementById('hostPanel');
+const viewerPanel = document.getElementById('viewerPanel');
+const hostVideo = document.getElementById('hostVideo');
+const viewerVideo = document.getElementById('viewerVideo');
+const hostIdEl = document.getElementById('hostId');
 
-    const hostVideo = document.getElementById('hostVideo');
-    const viewerVideo = document.getElementById('viewerVideo');
+function createPeer() {
+  return new Peer(undefined, {
+    config: {
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    }
+  });
+}
 
-    const hostStatus = document.getElementById('hostStatus');
-    const viewerStatus = document.getElementById('viewerStatus');
+// HOST
+hostBtn.onclick = async () => {
+  hostPanel.style.display = 'block';
+  viewerPanel.style.display = 'none';
 
-    const hostStats = document.getElementById('hostStats');
-    const viewerStats = document.getElementById('viewerStats');
+  try {
+    localStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: 30 },
+      audio: false
+    });
 
-    const roomLink = document.getElementById('roomLink');
+    hostVideo.srcObject = localStream;
 
-    function createPeer() {
-      return new Peer(undefined, {
-        host: '0.peerjs.com',
-        port: 443,
-        secure: true,
-        path: '/',
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:global.stun.twilio.com:3478' }
-          ]
-        },
-        debug: 3
+    peer = createPeer();
+
+    peer.on('open', (id) => {
+      hostIdEl.innerText = "Host ID: " + id;
+    });
+
+    peer.on('call', (call) => {
+      call.answer(localStream);
+    });
+
+  } catch (e) {
+    alert('Screen capture failed');
+    console.error(e);
+  }
+};
+
+// SWITCH VIEWER
+viewerBtn.onclick = () => {
+  hostPanel.style.display = 'none';
+  viewerPanel.style.display = 'block';
+};
+
+// CONNECT
+connectBtn.onclick = async () => {
+  const id = document.getElementById('roomInput').value.trim();
+
+  if (!id) return alert('Enter Host ID');
+
+  peer = createPeer();
+
+  peer.on('open', async () => {
+
+    let fakeStream;
+    try {
+      fakeStream = await navigator.mediaDevices.getUserMedia({
+        video: false,
+        audio: false
       });
-    },
-            { urls: 'stun:global.stun.twilio.com:3478' }
-          ]
-        },
-        debug: 1
-      });
+    } catch (e) {
+      fakeStream = new MediaStream();
     }
 
-    hostBtn.onclick = async () => {
-      hostPanel.style.display = 'block';
-      viewerPanel.style.display = 'none';
+    const call = peer.call(id, fakeStream);
 
-      hostStatus.textContent = 'Capturing screen...';
+    call.on('stream', (remoteStream) => {
+      console.log('stream received');
 
-      try {
-        localStream = await navigator.mediaDevices.getDisplayMedia({
-          video: {
-            frameRate: {
-              ideal: 30,
-              max: 30
-            },
-            width: {
-              ideal: 1920
-            },
-            height: {
-              ideal: 1080
-            }
-          },
-          audio: false
-        });
+      viewerVideo.srcObject = remoteStream;
 
-        hostVideo.srcObject = localStream;
+      viewerVideo.play().catch(()=>{});
+    });
 
-        const track = localStream.getVideoTracks()[0];
-        console.log(track.getSettings());
+  });
+};
+</script>
 
-        peer = createPeer();
-
-        peer.on('open', (id) => {
-          hostStatus.textContent = 'Hosting stream';
-
-          const url = `${location.origin}${location.pathname}?room=${id}`;
-
-          roomLink.innerHTML = `
-            <p style="margin-top:14px;">
-              Share this URL with your phone:
-            </p>
-            <input value="${url}" readonly>
-          `;
-
-          document.getElementById('qrcode').innerHTML = '';
-
-          new QRCode(document.getElementById('qrcode'), {
-            text: url,
-            width: 200,
-            height: 200
-          });
-        });
-
-        peer.on('call', async (call) => {
-          viewers.push(call.peer);
-
-          call.answer(localStream);
-
-          console.log('Viewer connected');
-
-          const sender = call.peerConnection
-            .getSenders()
-            .find(s => s.track && s.track.kind === 'video');
-
-          if (sender) {
-            const params = sender.getParameters();
-
-            if (!params.encodings) {
-              params.encodings = [{}];
-            }
-
-            params.encodings[0].maxBitrate = 5000000;
-            params.encodings[0].maxFramerate = 60;
-
-            try {
-              await sender.setParameters(params);
-            } catch (e) {
-              console.log(e);
-            }
-          }
-
-          hostStatus.textContent = `Connected viewers: ${viewers.length}`;
-
-          call.on('close', () => {
-            viewers = viewers.filter(v => v !== call.peer);
-            hostStatus.textContent = `Connected viewers: ${viewers.length}`;
-          });
-        });
-
-        setInterval(() => {
-          if (!track) return;
-
-          const settings = track.getSettings();
-
-          hostStats.innerHTML = `
-            Resolution: ${settings.width}x${settings.height}
-            <br>
-            FPS: ${settings.frameRate || 'Unknown'}
-            <br>
-            Viewers: ${viewers.length}
-          `;
-        }, 1000);
-
-      } catch (err) {
-        console.error(err);
-        hostStatus.textContent = 'Failed to start stream';
-      }
-    };
-
-    viewerBtn.onclick = () => {
-      viewerPanel.style.display = 'block';
-      hostPanel.style.display = 'none';
-    };
-
-    async function connectViewer(roomId) {
-      viewerStatus.textContent = 'Connecting...';
-
-      peer = createPeer();
-
-      peer.on('open', async () => {
-        // No fake stream needed for receiving video
-        const call = peer.call(roomId, null);
-
-        const call = peer.call(roomId, fakeStream);
-
-        call.on('stream', async (remoteStream) => {
-          console.log('STREAM RECEIVED', remoteStream);
-
-          viewerVideo.srcObject = remoteStream;
-
-          viewerVideo.style.background = 'black';
-
-          try {
-            await viewerVideo.play();
-          } catch (e) {
-            console.log('autoplay blocked, waiting user tap', e);
-          }
-
-          viewerStatus.textContent = 'Connected!';;
-
-          const track = remoteStream.getVideoTracks()[0];
-
-          setInterval(() => {
-            if (!track) return;
-
-            const settings = track.getSettings();
-
-            viewerStats.innerHTML = `
-              Resolution: ${settings.width || '?'}x${settings.height || '?'}
-              <br>
-              FPS: ${settings.frameRate || '?'}
-            `;
-          }, 1000);
-        });
-
-        call.on('close', () => {
-          viewerStatus.textContent = 'Disconnected';
-        });
-
-        call.on('error', (err) => {
-          console.error(err);
-          viewerStatus.textContent = 'Connection error';
-        });
-      });
-    }
-
-    document.getElementById('connectBtn').onclick = () => {
-      let value = document.getElementById('roomInput').value.trim();
-
-      try {
-        if (value.includes('?room=')) {
-          value = new URL(value).searchParams.get('room');
-        }
-      } catch {}
-
-      connectViewer(value);
-    };
-
-    const params = new URLSearchParams(location.search);
-    const autoRoom = params.get('room');
-
-    if (autoRoom) {
-      viewerPanel.style.display = 'block';
-      document.getElementById('roomInput').value = autoRoom;
-      connectViewer(autoRoom);
-    }
-  </script>
 </body>
 </html>
